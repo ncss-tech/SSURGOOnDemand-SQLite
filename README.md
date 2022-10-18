@@ -1,7 +1,9 @@
 # SSURGOOnDemand-SQLite
  NCSS soil survey aggregation engine for SSURGO SQLite or Geoppackage databases
  
-This tool uses python to generate soi property or interpretation information by aggregating the tables in a SQLite or Geoppackage SSURGO template database.  It leverages the tkinter libraries native to python giving the tools a GUI interface.  It is a companion application to SSURGO portal which builds the required template databases.  All of the information derived from the tools are dependent on what is in the input database and thus an internet connection is not required.  Soils data is annually updated around October 1.  Any changes made to Web Soil Survey information need to be reacquired to be current.  While rare, out-of-cycle refreshes to soil survey areas do happen.
+This tool uses Python to generate soi property or interpretation information by aggregating the tables in a SQLite or Geoppackage SSURGO template database.  It leverages the tkinter libraries native to python giving the tools a GUI interface.  It is a companion application to SSURGO portal which builds the required template databases.  All of the information derived from the tools are dependent on what is in the input database and thus an internet connection is not required.  Soils data is annually updated around October 1.  Any changes made to Web Soil Survey information need to be reacquired to be current.  While rare, out-of-cycle refreshes to soil survey areas do happen.
+
+To run the tools a user must have a version of Python 3.x that have installed the tkinter libraries (this option is enabled by default).  SSURGO On-Demand is luanched from either the DOS/terminal prompt by simply typing the path to the file <b>(i.e. C:\>"D:\GIS\GitHub\SSURGOOnDemand-SQLite\sod.py")</b> or from a Python IDE such as IDLE.    
 
 In order to properly use these tools a user must understand the concept of soil mapunit aggregation.
 
@@ -16,4 +18,4 @@ The aggregation method "Dominant Condition" first groups like attribute values f
 
 The aggregation method "Weighted Average" computes a weighted average value for all components in the map unit. Percent composition is the weighting factor. The result returned by this aggregation method represents a weighted average value of the corresponding attribute throughout the map unit.
 
-The aggregation method "Minimum or Maximum" returns either the lowest or highest attribute value among all components of the map unit.  This method within the tool evaluates the entirety of the soil profile, not a depth range.
+The aggregation method "Minimum or Maximum" returns either the lowest or highest attribute value among all components of the map unit.  This method within SSURGO On-Demand evaluates the entirety of the soil profile, not a depth range.
