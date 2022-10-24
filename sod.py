@@ -185,6 +185,8 @@ class Properties:
         
         import tkinter.filedialog
         self.db = tkinter.filedialog.askopenfilename(parent=self.frame,  initialdir="", title="Select SSURGO Template Database", filetypes=(("SQLite", " *.gpkg"), ("SQLite", "*.sqlite"), ("All Files", "*")))
+        typind = self.db.rfind(".")
+        self.dtype = self.db[typind:]
         self.openLbl=tkinter.Label(self.openFrame, text=self.db, bg='white', padx=5, pady=5)
         self.openLbl.grid(sticky = 'w', row=0, column=1)
         
@@ -349,7 +351,7 @@ class Properties:
                 
                 for p in propReq:
                     sdaCol = self.proplu(p)
-                    tQry, pQry = self.dcpc(sdaCol)
+                    tQry, pQry = self.dcpc(sdaCol, self.dtype)
                     # print(theQry)
                     self.exeq(tQry)
                     self.exeq(pQry)
@@ -359,7 +361,7 @@ class Properties:
                 for p in propReq:
                     sdaCol = self.proplu(p)
                     mmChoice = self.mmChoices.get()
-                    tQry, pQry = self.minmax(sdaCol, mmChoice)
+                    tQry, pQry = self.minmax(sdaCol, mmChoice, self.dtype)
                     self.exeq(tQry)
                     self.exeq(pQry)
             
@@ -367,7 +369,7 @@ class Properties:
                 
                 for p in propReq:
                     sdaCol = self.proplu(p)
-                    tQry, pQry = self.dcond(sdaCol)
+                    tQry, pQry = self.dcond(sdaCol, self.dtype)
                     self.exeq(tQry)
                     self.exeq(pQry)
                     
@@ -375,7 +377,7 @@ class Properties:
                 
                 for p in propReq:
                     sdaCol = self.proplu(p)
-                    tQry, pQry = self.wtdavg(sdaCol, str(runTop), str(runBot))
+                    tQry, pQry = self.wtdavg(sdaCol, str(runTop), str(runBot), self.dtype)
                     self.exeq(tQry)
                     self.exeq(pQry)
             
@@ -383,7 +385,7 @@ class Properties:
                 
                 for p in propReq:
                     sdaCol = self.proplu(p)
-                    tQry, pQry = self.dcpn(sdaCol, str(runTop), str(runBot))
+                    tQry, pQry = self.dcpn(sdaCol, str(runTop), str(runBot), self.dtype)
                     self.exeq(tQry)
                     self.exeq(pQry)
             
@@ -400,7 +402,7 @@ class Properties:
         return sacount
                 
         
-    def dcpc(self, col):
+    def dcpc(self, col, dbtype):
         
         tblname = 'SSURGOOnDemand_dom_comp_' + col
         
@@ -413,12 +415,32 @@ class Properties:
         INNER JOIN component AS c ON c.mukey = mu.mukey
         AND c.cokey =
         (SELECT c1.cokey FROM component AS c1
-        INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey LIMIT 1);"""
+        INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey LIMIT 1);
+        """
         
+        if dbtype == '.gpkg':
+            
+            gtest = """
+            DELETE FROM gpkg_contents
+            WHERE table_name = '""" + tblname + """';"""
+            
+            test = test + gtest
+            
+            gcontents = """INSERT INTO gpkg_contents 
+            (table_name, data_type, identifier, description, min_x, min_y, max_x, max_y, srs_id)
+            VALUES ('""" + tblname + """', 'attributes','""" + tblname + """', '', -180.0, -90.0, 180.0, 90, 4326);"""
+            
+            qry_dcpc = qry_dcpc + gcontents
+
+        else:
+            pass            
+        
+        # print(test)
+        # print(qry_dcpc)
         return test, qry_dcpc
     
     
-    def minmax(self, col, mmc):
+    def minmax(self, col, mmc, dbtype):
         
         tblname = 'SSURGOOnDemand_minmax_' + col + '_' + mmc
         
@@ -438,10 +460,27 @@ class Properties:
         (SELECT c1.cokey FROM component AS c1
         INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey LIMIT 1)"""
         
+        if dbtype == '.gpkg':
+            
+            gtest = """
+            DELETE FROM gpkg_contents
+            WHERE table_name = '""" + tblname + """';"""
+            
+            test = test + gtest
+            
+            gcontents = """INSERT INTO gpkg_contents 
+            (table_name, data_type, identifier, description, min_x, min_y, max_x, max_y, srs_id)
+            VALUES ('""" + tblname + """', 'attributes','""" + tblname + """', '', -180.0, -90.0, 180.0, 90, 4326);"""
+            
+            qry_mm = qry_mm + gcontents
+
+        else:
+            pass            
+        
         return test, qry_mm
     
     
-    def dcond(self, col):
+    def dcond(self, col, dbtype):
         
         tblname = 'SSURGOOnDemand_dom_cond_' + col
         
@@ -463,10 +502,27 @@ class Properties:
         GROUP BY areasymbol, musym, muname, mu.mukey, c.cokey,  compname, comppct_r
         ORDER BY areasymbol, musym, muname, mu.mukey, comppct_r DESC, c.cokey """
         
+        if dbtype == '.gpkg':
+            
+            gtest = """
+            DELETE FROM gpkg_contents
+            WHERE table_name = '""" + tblname + """';"""
+            
+            test = test + gtest
+            
+            gcontents = """INSERT INTO gpkg_contents 
+            (table_name, data_type, identifier, description, min_x, min_y, max_x, max_y, srs_id)
+            VALUES ('""" + tblname + """', 'attributes','""" + tblname + """', '', -180.0, -90.0, 180.0, 90, 4326);"""
+            
+            qry_dcon = qry_dcon + gcontents
+
+        else:
+            pass            
+        
         return test, qry_dcon
     
     
-    def wtdavg(self, col, tDep, bDep):
+    def wtdavg(self, col, tDep, bDep, dbtype):
         
         tblname = 'SSURGOOnDemand_wtd_avg_' + col + '_' + tDep + '_' + bDep
         
@@ -554,10 +610,27 @@ class Properties:
         DROP TABLE IF EXISTS last_step2;
         DROP TABLE IF EXISTS main;"""
         
+        if dbtype == '.gpkg':
+            
+            gtest = """
+            DELETE FROM gpkg_contents
+            WHERE table_name = '""" + tblname + """';"""
+            
+            test = test + gtest
+            
+            gcontents = """INSERT INTO gpkg_contents 
+            (table_name, data_type, identifier, description, min_x, min_y, max_x, max_y, srs_id)
+            VALUES ('""" + tblname + """', 'attributes','""" + tblname + """', '', -180.0, -90.0, 180.0, 90, 4326);"""
+            
+            qry_wtdavg = qry_wtdavg + gcontents
+
+        else:
+            pass            
+        
         return test, qry_wtdavg
     
     
-    def dcpn(self, col, tDep, bDep):
+    def dcpn(self, col, tDep, bDep, dbtype):
         
         tblname = 'SSURGOOnDemand_dom_comp_' + col + '_' + tDep + '_' + bDep
         
@@ -649,6 +722,23 @@ class Properties:
         DROP TABLE IF EXISTS last_step2;
         DROP TABLE IF EXISTS main;"""
         
+        if dbtype == '.gpkg':
+            
+            gtest = """
+            DELETE FROM gpkg_contents
+            WHERE table_name = '""" + tblname + """';"""
+            
+            test = test + gtest
+            
+            gcontents = """INSERT INTO gpkg_contents 
+            (table_name, data_type, identifier, description, min_x, min_y, max_x, max_y, srs_id)
+            VALUES ('""" + tblname + """', 'attributes','""" + tblname + """', '', -180.0, -90.0, 180.0, 90, 4326);"""
+            
+            qry_dcpn = qry_dcpn + gcontents
+
+        else:
+            pass            
+        
         # print(self.qry_dcpn)
         return test, qry_dcpn
         
@@ -672,7 +762,7 @@ class Properties:
                     cur.close()
         
         except Exception as e:
-            
+            print(qry)
             print(e)
             self.invalid(message=e)
                         
@@ -778,6 +868,8 @@ class Interpretations:
         
         import tkinter.filedialog
         self.db = tkinter.filedialog.askopenfilename(parent=self.frame,  initialdir="", title="Select SSURGO Template Database", filetypes=(("SQLite", " *.gpkg"), ("SQLite", "*.sqlite"), ("All Files", "*")))
+        typind = self.db.rfind(".")
+        self.dtype = self.db[typind:]
         
         if self.db:
             q = """SELECT COUNT(*) FROM sacatalog;"""
@@ -839,7 +931,7 @@ class Interpretations:
             self.invalid(message=e)
         
     
-    def idomcond(self, iname):
+    def idomcond(self, iname, dbtype):
         
         itable = re.sub('[^0-9a-zA-Z]+', '_', iname)
         tblname = 'SSURGOOnDemand_dom_cond_' + itable 
@@ -888,11 +980,25 @@ class Interpretations:
          
          DROP TABLE IF EXISTS SSURGOOnDemand_domcond_temp;"""
          
+        if dbtype == '.gpkg':
+            
+            gtest = """
+            DELETE FROM gpkg_contents
+            WHERE table_name = '""" + tblname + """';"""
+            
+            test = test + gtest
+            
+            gcontents = """INSERT INTO gpkg_contents 
+            (table_name, data_type, identifier, description, min_x, min_y, max_x, max_y, srs_id)
+            VALUES ('""" + tblname + """', 'attributes','""" + tblname + """', '', -180.0, -90.0, 180.0, 90, 4326);"""
+            
+            qry_domcond = qry_domcond + gcontents
+        
         # print(qry_domcond)
         return test, qry_domcond
     
     
-    def idomcomp(self, iname):
+    def idomcomp(self, iname, dbtype):
         
         itable = re.sub('[^0-9a-zA-Z]+', '_', iname)
         tblname = 'SSURGOOnDemand_dom_comp_' + itable 
@@ -944,11 +1050,25 @@ class Interpretations:
          
         DROP TABLE IF EXISTS cointerp_idomcomp;"""
          
+        if dbtype == '.gpkg':
+            
+            gtest = """
+            DELETE FROM gpkg_contents
+            WHERE table_name = '""" + tblname + """';"""
+            
+            test = test + gtest
+            
+            gcontents = """INSERT INTO gpkg_contents 
+            (table_name, data_type, identifier, description, min_x, min_y, max_x, max_y, srs_id)
+            VALUES ('""" + tblname + """', 'attributes','""" + tblname + """', '', -180.0, -90.0, 180.0, 90, 4326);"""
+            
+            qry_domcomp = qry_domcomp + gcontents
+        
         # print(qry_domcomp)
         return test, qry_domcomp
     
     
-    def iwtdavg(self, iname):
+    def iwtdavg(self, iname, dbtype):
         
         itable = re.sub('[^0-9a-zA-Z]+', '_', iname)
         tblname = 'SSURGOOnDemand_wtd_avg_' + itable 
@@ -1005,7 +1125,23 @@ class Interpretations:
         DROP TABLE IF EXISTS main;
         DROP TABLE IF EXISTS cointerp_lite_temp;""" 
        
+        if dbtype == '.gpkg':
+            
+            gtest = """
+            DELETE FROM gpkg_contents
+            WHERE table_name = '""" + tblname + """';"""
+            
+            test = test + gtest
+            
+            gcontents = """INSERT INTO gpkg_contents 
+            (table_name, data_type, identifier, description, min_x, min_y, max_x, max_y, srs_id)
+            VALUES ('""" + tblname + """', 'attributes','""" + tblname + """', '', -180.0, -90.0, 180.0, 90, 4326);"""
+            
+            qry_wtdavg = qry_wtdavg + gcontents
+        
+        # print(test)
         # print(qry_wtdavg)
+       
         return test, qry_wtdavg
        
           
@@ -1034,21 +1170,21 @@ class Interpretations:
                 if method == 'Dominant Condition':
                     for i in itrint:
                     
-                        tQry, pQry = self.idomcond(i)
+                        tQry, pQry = self.idomcond(i, self.dtype)
                         self.exeq(tQry, kind=None)
                         self.exeq(pQry, kind=None)
                         
                 elif method == 'Dominant Component':
                     for i in itrint:
                     
-                        tQry, pQry = self.idomcomp(i)
+                        tQry, pQry = self.idomcomp(i, self.dtype)
                         self.exeq(tQry, kind=None)
                         self.exeq(pQry, kind=None)
                         
                 elif method == 'Weighted Average':
                     for i in itrint:
                         
-                        tQry, pQry = self.iwtdavg(i)
+                        tQry, pQry = self.iwtdavg(i, self.dtype)
                         self.exeq(tQry, kind=None)
                         self.exeq(pQry, kind=None)
     
