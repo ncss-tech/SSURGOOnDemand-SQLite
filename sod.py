@@ -448,7 +448,7 @@ class Properties:
         
         qry_mm = """--minimum/maximum
         CREATE TABLE """ + tblname + """ AS SELECT areasymbol, musym, muname, mu.mukey  AS mukey,
-        (SELECT """ + mmc + """ (chm1.""" + col + """) FROM  component AS cm1
+        (SELECT CAST(""" + mmc + """ (chm1.""" + col + """) AS REAL) FROM  component AS cm1
         INNER JOIN chorizon AS chm1 ON cm1.cokey = chm1.cokey AND cm1.cokey = c.cokey
         AND CASE WHEN chm1.hzname LIKE  '%O%' AND hzdept_r <10 THEN 2
         WHEN chm1.hzname LIKE  '%r%' THEN 2
@@ -458,7 +458,8 @@ class Properties:
         INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey
         INNER JOIN  component AS c ON c.mukey = mu.mukey  AND c.cokey =
         (SELECT c1.cokey FROM component AS c1
-        INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey LIMIT 1)"""
+        INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey LIMIT 1);
+        """
         
         if dbtype == '.gpkg':
             
@@ -536,7 +537,7 @@ class Properties:
         DROP TABLE IF EXISTS comp_temp3;
         DROP TABLE IF EXISTS last_step;
         DROP TABLE IF EXISTS last_step2;
-        DROP TABLE IF EXISTS main;
+        DROP TABLE IF EXISTS temp_main;
         
         CREATE TABLE kitchensink AS
         SELECT areasymbol, musym, muname, mukey
@@ -554,16 +555,16 @@ class Properties:
         ELSE CAST (CAST (comppct_r AS  REAL) / CAST (SUM_COMP_PCT AS REAL) AS REAL) END AS WEIGHTED_COMP_PCT
         FROM comp_temp;	
         
-        CREATE TABLE main AS		
+        CREATE TABLE temp_main AS		
         SELECT
         areasymbol, musym, muname, mu.mukey/1  AS MUKEY, c.cokey AS COKEY, ch.chkey/1 AS CHKEY, compname, hzname, hzdept_r, hzdepb_r, CASE WHEN hzdept_r < """ + tDep + """  THEN 0 ELSE hzdept_r END AS hzdept_r_ADJ,
         CASE WHEN hzdepb_r > """ + bDep + """  THEN 100 ELSE hzdepb_r END AS hzdepb_r_ADJ,
         CAST (CASE WHEN hzdepb_r > """ + bDep + """  THEN 100 ELSE hzdepb_r END - CASE WHEN hzdept_r < """ + tDep + """ THEN 0 ELSE hzdept_r END AS decimal (5,2)) AS thickness,
         comppct_r,
         CAST (SUM (CASE WHEN hzdepb_r > """ + bDep + """  THEN 100 ELSE hzdepb_r END - CASE WHEN hzdept_r < """ + tDep + """ THEN 0 ELSE hzdept_r END) over(partition by c.cokey) AS decimal (5,2)) AS sum_thickness,
-        CAST (IFNULL (""" + col + """, 0) AS decimal (5,2))AS """ + col + """
+        CAST (IFNULL (""" + col + """, 0) AS REAL) AS """ + col + """
         
-        FROM kitchensink AS mu -- = 'VT013' --AND mu.mukey IN ('279217')
+        FROM kitchensink AS mu
         INNER JOIN  component AS c ON c.mukey = mu.mukey
         INNER JOIN chorizon AS ch ON ch.cokey=c.cokey AND hzname NOT LIKE '%O%'AND hzname NOT LIKE '%r%'
         AND hzdepb_r > """ + tDep + """ AND hzdept_r < """ + bDep + """
@@ -572,12 +573,12 @@ class Properties:
         ORDER BY areasymbol, musym, muname, mu.mukey, comppct_r DESC, cokey,  hzdept_r, hzdepb_r	;	
         
         CREATE TABLE comp_temp2 AS 
-        SELECT main.areasymbol, main.musym, main.muname, main.MUKEY,
-        main.COKEY, main.CHKEY, main.compname, hzname, hzdept_r, hzdepb_r, hzdept_r_ADJ, hzdepb_r_ADJ, thickness, sum_thickness, """ + col + """, comppct_r, SUM_COMP_PCT, WEIGHTED_COMP_PCT ,
-        SUM((CAST (thickness  AS REAL )/CAST (sum_thickness  AS REAL ) ) * """ + col + """ )over(partition by main.COKEY)AS COMP_WEIGHTED_AVERAGE
-        FROM main
-        INNER JOIN comp_temp3 ON comp_temp3.cokey=main.cokey
-        ORDER BY main.areasymbol, main.musym, main.muname, main.MUKEY, comppct_r DESC,  main.COKEY,  hzdept_r, hzdepb_r;
+        SELECT temp_main.areasymbol, temp_main.musym, temp_main.muname, temp_main.MUKEY,
+        temp_main.COKEY, temp_main.CHKEY, temp_main.compname, hzname, hzdept_r, hzdepb_r, hzdept_r_ADJ, hzdepb_r_ADJ, thickness, sum_thickness, """ + col + """, comppct_r, SUM_COMP_PCT, WEIGHTED_COMP_PCT ,
+        SUM((CAST (thickness  AS REAL )/CAST (sum_thickness  AS REAL ) ) * """ + col + """ )over(partition by temp_main.COKEY)AS COMP_WEIGHTED_AVERAGE
+        FROM temp_main
+        INNER JOIN comp_temp3 ON comp_temp3.cokey=temp_main.cokey
+        ORDER BY temp_main.areasymbol, temp_main.musym, temp_main.muname, temp_main.MUKEY, comppct_r DESC,  temp_main.COKEY,  hzdept_r, hzdepb_r;
         
         CREATE TABLE last_step AS 
         SELECT comp_temp2.MUKEY,comp_temp2.COKEY, WEIGHTED_COMP_PCT * COMP_WEIGHTED_AVERAGE AS COMP_WEIGHTED_AVERAGE1
@@ -596,7 +597,7 @@ class Properties:
         
         CREATE TABLE """ + tblname + """ AS
         SELECT last_step2.areasymbol, last_step2.musym, last_step2.muname,
-        last_step2.mukey, ROUND (last_step2.""" + col + """, 2) AS """ + col + """
+        last_step2.mukey, CAST(ROUND (last_step2.""" + col + """, 2) AS REAL) AS """ + col + """
         FROM last_step2
         LEFT OUTER JOIN last_step ON last_step.mukey=last_step2.mukey
         GROUP BY last_step2.areasymbol, last_step2.musym, last_step2.muname, last_step2.mukey, last_step2.""" + col + """
@@ -608,7 +609,7 @@ class Properties:
         DROP TABLE IF EXISTS comp_temp3;
         DROP TABLE IF EXISTS last_step;
         DROP TABLE IF EXISTS last_step2;
-        DROP TABLE IF EXISTS main;"""
+        DROP TABLE IF EXISTS temp_main;"""
         
         if dbtype == '.gpkg':
             
@@ -643,7 +644,7 @@ class Properties:
         DROP TABLE IF EXISTS comp_temp3;
         DROP TABLE IF EXISTS last_step;
         DROP TABLE IF EXISTS last_step2;
-        DROP TABLE IF EXISTS main;
+        DROP TABLE IF EXISTS temp_main;
         
         
         CREATE TABLE kitchensink AS
@@ -667,7 +668,7 @@ class Properties:
         ELSE CAST (CAST (comppct_r AS  REAL) / CAST (SUM_COMP_PCT AS REAL) AS REAL) END AS WEIGHTED_COMP_PCT
         FROM comp_temp;	
         
-        CREATE TABLE main AS		
+        CREATE TABLE temp_main AS		
         SELECT
         areasymbol, musym, muname, mu.mukey/1  AS MUKEY, c.cokey AS COKEY, ch.chkey/1 AS CHKEY, compname, hzname, hzdept_r, hzdepb_r, CASE WHEN hzdept_r <""" + tDep + """  THEN 0 ELSE hzdept_r END AS hzdept_r_ADJ,
         CASE WHEN hzdepb_r > """ + bDep + """  THEN """ + bDep + """ ELSE hzdepb_r END AS hzdepb_r_ADJ,
@@ -685,12 +686,12 @@ class Properties:
         ORDER BY areasymbol, musym, muname, mu.mukey, comppct_r DESC, cokey,  hzdept_r, hzdepb_r	;	
         
         CREATE TABLE comp_temp2 AS 
-        SELECT main.areasymbol, main.musym, main.muname, main.MUKEY,
-        main.COKEY, main.CHKEY, main.compname, hzname, hzdept_r, hzdepb_r, hzdept_r_ADJ, hzdepb_r_ADJ, thickness, sum_thickness, """ + col + """, comppct_r, SUM_COMP_PCT, WEIGHTED_COMP_PCT ,
-        SUM((CAST (thickness  AS REAL )/CAST (sum_thickness  AS REAL ) ) * """ + col + """ )over(partition by main.COKEY)AS COMP_WEIGHTED_AVERAGE
-        FROM main
-        INNER JOIN comp_temp3 ON comp_temp3.cokey=main.cokey
-        ORDER BY main.areasymbol, main.musym, main.muname, main.MUKEY, comppct_r DESC,  main.COKEY,  hzdept_r, hzdepb_r;
+        SELECT temp_main.areasymbol, temp_main.musym, temp_main.muname, temp_main.MUKEY,
+        temp_main.COKEY, temp_main.CHKEY, temp_main.compname, hzname, hzdept_r, hzdepb_r, hzdept_r_ADJ, hzdepb_r_ADJ, thickness, sum_thickness, """ + col + """, comppct_r, SUM_COMP_PCT, WEIGHTED_COMP_PCT ,
+        SUM((CAST (thickness  AS REAL )/CAST (sum_thickness  AS REAL ) ) * """ + col + """ )over(partition by temp_main.COKEY)AS COMP_WEIGHTED_AVERAGE
+        FROM temp_main
+        INNER JOIN comp_temp3 ON comp_temp3.cokey=temp_main.cokey
+        ORDER BY temp_main.areasymbol, temp_main.musym, temp_main.muname, temp_main.MUKEY, comppct_r DESC,  temp_main.COKEY,  hzdept_r, hzdepb_r;
         
         CREATE TABLE last_step AS 
         SELECT comp_temp2.MUKEY,comp_temp2.COKEY, WEIGHTED_COMP_PCT * COMP_WEIGHTED_AVERAGE AS COMP_WEIGHTED_AVERAGE1
@@ -708,7 +709,7 @@ class Properties:
         
         
         CREATE TABLE """ + tblname + """ AS SELECT last_step2.areasymbol, last_step2.musym, last_step2.muname,
-        last_step2.mukey, ROUND (last_step2.""" + col + """, 2) AS """ + col + """
+        last_step2.mukey, CAST(ROUND (last_step2.""" + col + """, 2) AS REAL) AS """ + col + """
         FROM last_step2
         LEFT OUTER JOIN last_step ON last_step.mukey=last_step2.mukey
         GROUP BY last_step2.areasymbol, last_step2.musym, last_step2.muname, last_step2.mukey, last_step2.""" + col + """
@@ -720,7 +721,7 @@ class Properties:
         DROP TABLE IF EXISTS comp_temp3;
         DROP TABLE IF EXISTS last_step;
         DROP TABLE IF EXISTS last_step2;
-        DROP TABLE IF EXISTS main;"""
+        DROP TABLE IF EXISTS temp_main;"""
         
         if dbtype == '.gpkg':
             
@@ -852,7 +853,7 @@ class Interpretations:
         self.runFrame = tkinter.LabelFrame(self.frame, text='Execute', font=f)
         self.runFrame.grid(row=3, column=0, padx = 15, pady= 10)
         
-        self.execButton = tkinter.Button(self.runFrame, text = 'Execute', width = 25, command = self.run)
+        self.execButton = tkinter.Button(self.runFrame, text = 'Run', width = 25, command = self.run)
         self.execButton.grid(row=0, column=0, padx=10, pady=10)
         
         self.quitButton = tkinter.Button(self.runFrame, text = 'Quit', width = 25, command = self.close_windows)
@@ -937,7 +938,8 @@ class Interpretations:
         tblname = 'SSURGOOnDemand_dom_cond_' + itable 
         
         test = """DROP TABLE IF EXISTS """ + tblname + """;
-        DROP TABLE IF EXISTS SSURGOOnDemand_domcond_temp;"""
+        DROP TABLE IF EXISTS SSURGOOnDemand_domcond_temp;
+        DROP TABLE IF EXISTS SSURGOOnDemand_domcond_temp2;"""
         
         qry_domcond = """--dominant condition
 
@@ -954,12 +956,12 @@ class Interpretations:
         FROM[cointerp] WHERE mrulename = '""" + iname + """' ;
         
         
-         CREATE TABLE """ + tblname + """ AS SELECT areasymbol, musym, muname, mu.mukey/1  AS mukey, 
+         CREATE TABLE SSURGOOnDemand_domcond_temp2 AS SELECT areasymbol, musym, muname, CAST(mu.mukey/1 AS INT)  AS mukey, 
          (SELECT ROUND (AVG(interphr) over(partition by interphrc),2)
          FROM mapunit
          INNER JOIN component ON component.mukey=mapunit.mukey
-         INNER JOIN SSURGOOnDemand_domcond_temp ON component.cokey = SSURGOOnDemand_domcond_temp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE '""" + iname + """' GROUP BY interphrc, interphr
-         ORDER BY SUM (comppct_r) DESC LIMIT 1)as rating,
+         INNER JOIN SSURGOOnDemand_domcond_temp ON component.cokey = SSURGOOnDemand_domcond_temp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE '""" + iname + """' GROUP BY interphrc,
+         interphr ORDER BY SUM (comppct_r) DESC LIMIT 1) AS rating,
          (SELECT interphrc
          FROM mapunit
          INNER JOIN component ON component.mukey=mapunit.mukey
@@ -978,7 +980,12 @@ class Interpretations:
          INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey 
          ORDER BY areasymbol, musym, muname, mu.mukey;
          
-         DROP TABLE IF EXISTS SSURGOOnDemand_domcond_temp;"""
+         CREATE TABLE """ + tblname + """ AS SELECT CAST(areasymbol AS text) AS areasymbol, CAST(musym AS test) AS musym, CAST(muname AS text) AS muname, 
+         CAST(mukey As INT) AS mukey, CAST(rating AS REAL) AS rating, CAST(class AS text) AS class, CAST(reason AS text) AS reason
+         FROM SSURGOOnDemand_domcond_temp2;
+         
+         DROP TABLE IF EXISTS SSURGOOnDemand_domcond_temp;
+         DROP TABLE IF EXISTS SSURGOOnDemand_domcond_temp2;"""
          
         if dbtype == '.gpkg':
             
@@ -1004,7 +1011,8 @@ class Interpretations:
         tblname = 'SSURGOOnDemand_dom_comp_' + itable 
         
         test = """DROP TABLE IF EXISTS """ + tblname + """;
-        DROP TABLE IF EXISTS cointerp_idomcomp;"""
+        DROP TABLE IF EXISTS cointerp_idomcomp;
+        DROP TABLE IF EXISTS cointerp_idomcomp2;"""
         
         qry_domcomp = """--dominant component
 
@@ -1021,7 +1029,7 @@ class Interpretations:
         FROM[cointerp] WHERE mrulename = '""" + iname + """';
         
         
-        CREATE TABLE """ + tblname + """ AS SELECT areasymbol, musym, muname, mu.mukey/1  AS mukey, 
+        CREATE TABLE cointerp_idomcomp2 AS SELECT areasymbol, musym, muname, mu.mukey/1  AS mukey, 
         (SELECT ROUND (AVG(interphr) over(partition by interphrc),2)
         FROM mapunit
         INNER JOIN component ON component.mukey=mapunit.mukey
@@ -1047,8 +1055,13 @@ class Interpretations:
         (SELECT c2.cokey FROM component AS c2
         INNER JOIN mapunit AS mm1 ON c2.mukey=mm1.mukey AND c2.mukey=mu.mukey ORDER BY c2.comppct_r DESC, c2.cokey LIMIT 1)
         ORDER BY areasymbol, musym, muname, mu.mukey;
+        
+       CREATE TABLE """ + tblname + """ AS SELECT CAST(areasymbol AS text) AS areasymbol, CAST(musym AS test) AS musym, CAST(muname AS text) AS muname, 
+       CAST(mukey As INT) AS mukey, CAST(rating AS REAL) AS rating, CAST(class AS text) AS class, CAST(reason AS text) AS reason
+        FROM cointerp_idomcomp2;
          
-        DROP TABLE IF EXISTS cointerp_idomcomp;"""
+        DROP TABLE IF EXISTS cointerp_idomcomp;
+        DROP TABLE IF EXISTS cointerp_idomcomp2;"""
          
         if dbtype == '.gpkg':
             
@@ -1077,7 +1090,7 @@ class Interpretations:
         DROP TABLE IF EXISTS cointerp_lite_temp;"""
         
         qry_wtdavg = """--weighted average
-        DROP TABLE IF EXISTS main;
+        DROP TABLE IF EXISTS temp_main;
         DROP TABLE IF EXISTS cointerp_lite_temp;
         
         CREATE TABLE cointerp_lite_temp AS
@@ -1092,7 +1105,7 @@ class Interpretations:
         FROM[cointerp] WHERE mrulename = '""" + iname + """';
         
         
-        	CREATE TABLE main AS SELECT areasymbol, musym, muname, mu.mukey/1  AS mukey,
+        	CREATE TABLE temp_main AS SELECT areasymbol, musym, muname, mu.mukey/1  AS mukey,
         
         		ROUND ((SELECT SUM (interphr * comppct_r)
         		FROM mapunit
@@ -1119,10 +1132,11 @@ class Interpretations:
                     INNER JOIN  component AS c ON c.mukey = mu.mukey
                     GROUP BY areasymbol, musym, muname, mu.mukey;
                     
-        CREATE TABLE """ + tblname + """ AS SELECT areasymbol, musym, muname,mukey, rating/sum_com AS rating, reason
-        FROM main;
+        CREATE TABLE """ + tblname + """ AS SELECT CAST(areasymbol AS text) AS areasymbol, CAST(musym AS text) AS musym, 
+        CAST(muname AS text) AS muname, CAST(mukey AS INT) AS mukey, CAST(rating/sum_com AS REAL) AS rating, CAST(reason AS text) AS reason
+        FROM temp_main;
         
-        DROP TABLE IF EXISTS main;
+        DROP TABLE IF EXISTS temp_main;
         DROP TABLE IF EXISTS cointerp_lite_temp;""" 
        
         if dbtype == '.gpkg':
