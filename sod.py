@@ -171,6 +171,7 @@ class Properties:
         
         self.runButton = tkinter.Button(self.runFrame, text = 'Run', width = 20, command = self.run)
         self.runButton.grid(row=0, column=0, padx=10, pady=10)
+        self.runButton["activebackground"] = '#d8e1d9'
         
         self.quitButton = tkinter.Button(self.runFrame, text = 'Quit', width = 20, command = self.close_windows)
         self.quitButton.grid(row=0, column=1, padx=10, pady=10)
@@ -855,6 +856,7 @@ class Interpretations:
         
         self.execButton = tkinter.Button(self.runFrame, text = 'Run', width = 25, command = self.run)
         self.execButton.grid(row=0, column=0, padx=10, pady=10)
+        self.execButton["activebackground"] = "#d8e1d9"
         
         self.quitButton = tkinter.Button(self.runFrame, text = 'Quit', width = 25, command = self.close_windows)
         self.quitButton.grid(row=0, column=1, padx=10, pady=10)
