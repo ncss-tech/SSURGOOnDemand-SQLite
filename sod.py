@@ -24,7 +24,7 @@ class Splash:
             if os.path.exists(png):
             
                 img = tkinter.Image("photo", file=png)
-                root.tk.call('wm','iconphoto',root._w,img)
+                self.master.tk.call('wm','iconphoto',self.master._w,img)
         
             else:
                 pass
@@ -103,7 +103,7 @@ class Properties:
             if os.path.exists(png):
             
                 img = tkinter.Image("photo", file=png)
-                root.tk.call('wm','iconphoto',root._w,img)
+                self.master.tk.call('wm','iconphoto',self.master._w,img)
                 
             else:
                 pass
@@ -802,7 +802,7 @@ class Interpretations:
             if os.path.exists(png):
             
                 img = tkinter.Image("photo", file=png)
-                root.tk.call('wm','iconphoto',root._w,img)
+                self.master.tk.call('wm','iconphoto',self.master._w,img)
         
             else:
                 pass
