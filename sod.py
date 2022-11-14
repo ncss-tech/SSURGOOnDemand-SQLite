@@ -34,11 +34,13 @@ class Splash:
         property or interpretation information.  Source data are typically Web Soil Survey - Soil 
         Survey Geographic Database (SSURGO) downloads that have been imported into one of 
         these databases. When properties or interpretations have been executed with this tool 
-        the results are written to the template database and have a 'SSURGOOnDemand' prefix.
+        the results are tables written to the template database and have a 'SSURGOOnDemand' prefix.
+        These tables can be used in GIS software and joined to spatial data using the map unit key
+        (mukey) fields.
         
         Soil propeties are attributes found in a soil profile that can be measured or evaluated. 
-        Examples include percent sand, percent silt, percent clay, bulk density g/cm3, 
-        available water capacity cm/cm, etc.
+        Examples include percent sand, percent silt, percent clay, bulk density (g/cm3), 
+        available water capacity (cm/cm), etc.
         
         Soil interpretations evaluate soil classes for suitabilty and limitations in land use 
         applications and management. Examples include Dwellings with Basements, Camping Areas, 
@@ -137,7 +139,7 @@ class Properties:
         self.propFrame.grid(sticky = 'w', row=2, column=0, padx = 15, pady= 10)
         
         # === depth frame
-        self.depthFrame = tkinter.LabelFrame(self.frame, text='Select Depth Ranges (*Optional) ', font=f)
+        self.depthFrame = tkinter.LabelFrame(self.frame, text='Select Depth Range (*Optional) ', font=f)
         self.depthFrame.grid(sticky='w', row=3, column=0, padx = 15, pady= 10)
         
         self.topLabel = tkinter.Label(self.depthFrame, text = 'Top Depth', font = f)
@@ -173,7 +175,7 @@ class Properties:
         self.runButton.grid(row=0, column=0, padx=10, pady=10)
         self.runButton["activebackground"] = '#d8e1d9'
         
-        self.quitButton = tkinter.Button(self.runFrame, text = 'Quit', width = 20, command = self.close_windows)
+        self.quitButton = tkinter.Button(self.runFrame, text = 'Cancel', width = 20, command = self.close_windows)
         self.quitButton.grid(row=0, column=1, padx=10, pady=10)
         
         self.propGen()
@@ -450,14 +452,14 @@ class Properties:
         qry_mm = """--minimum/maximum
         CREATE TABLE """ + tblname + """ AS SELECT areasymbol, musym, muname, mu.mukey  AS mukey,
         (SELECT CAST(""" + mmc + """ (chm1.""" + col + """) AS REAL) FROM  component AS cm1
-        INNER JOIN chorizon AS chm1 ON cm1.cokey = chm1.cokey AND cm1.cokey = c.cokey
+        INNER JOIN chorizon AS chm1 ON cm1.cokey = chm1.cokey AND cm1.cokey = c.cokey AND majcompflag = 'Yes'
         AND CASE WHEN chm1.hzname LIKE  '%O%' AND hzdept_r <10 THEN 2
         WHEN chm1.hzname LIKE  '%r%' THEN 2
         WHEN chm1.hzname LIKE  '%'  THEN  1 ELSE 1 END = 1
         LIMIT 1) AS """ + col + """
         FROM legend  AS l
         INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey
-        INNER JOIN  component AS c ON c.mukey = mu.mukey  AND c.cokey =
+        INNER JOIN  component AS c ON c.mukey = mu.mukey AND majcompflag = 'Yes' AND c.cokey =
         (SELECT c1.cokey FROM component AS c1
         INNER JOIN mapunit ON c.mukey=mapunit.mukey AND c1.mukey=mu.mukey ORDER BY c1.comppct_r DESC, c1.cokey LIMIT 1);
         """
@@ -479,6 +481,7 @@ class Properties:
         else:
             pass            
         
+        print(qry_mm)
         return test, qry_mm
     
     
@@ -566,7 +569,7 @@ class Properties:
         CAST (IFNULL (""" + col + """, 0) AS REAL) AS """ + col + """
         
         FROM kitchensink AS mu
-        INNER JOIN  component AS c ON c.mukey = mu.mukey
+        INNER JOIN  component AS c ON c.mukey = mu.mukey AND majcompflag = 'Yes'
         INNER JOIN chorizon AS ch ON ch.cokey=c.cokey AND hzname NOT LIKE '%O%'AND hzname NOT LIKE '%r%'
         AND hzdepb_r > """ + tDep + """ AND hzdept_r < """ + bDep + """
         INNER JOIN chtexturegrp AS cht ON ch.chkey=cht.chkey  WHERE cht.rvindicator = 'Yes' AND  ch.hzdept_r IS NOT NULL
@@ -678,7 +681,7 @@ class Properties:
         CAST (SUM (CASE WHEN hzdepb_r > """ + bDep + """  THEN """ + bDep + """ ELSE hzdepb_r END - CASE WHEN hzdept_r <""" + tDep + """ THEN 0 ELSE hzdept_r END) over(partition by c.cokey) AS decimal (5,2)) AS sum_thickness,
         CAST (IFNULL (""" + col + """, 0) AS decimal (5,2))AS """ + col + """
         
-        FROM kitchensink  AS mu -- = 'VT013' --AND mu.mukey IN ('279217')
+        FROM kitchensink  AS mu
         INNER JOIN  component AS c ON c.mukey = mu.mukey
         INNER JOIN chorizon AS ch ON ch.cokey=c.cokey AND hzname NOT LIKE '%O%'AND hzname NOT LIKE '%r%'
         AND hzdepb_r >""" + tDep + """ AND hzdept_r <""" + bDep + """
@@ -858,7 +861,7 @@ class Interpretations:
         self.execButton.grid(row=0, column=0, padx=10, pady=10)
         self.execButton["activebackground"] = "#d8e1d9"
         
-        self.quitButton = tkinter.Button(self.runFrame, text = 'Quit', width = 25, command = self.close_windows)
+        self.quitButton = tkinter.Button(self.runFrame, text = 'Cancel', width = 25, command = self.close_windows)
         self.quitButton.grid(row=0, column=1, padx=10, pady=10)
         
     
@@ -930,7 +933,6 @@ class Interpretations:
         
         except Exception as e:
             print(e)
-           
             self.invalid(message=e)
         
     
@@ -961,19 +963,19 @@ class Interpretations:
          CREATE TABLE SSURGOOnDemand_domcond_temp2 AS SELECT areasymbol, musym, muname, CAST(mu.mukey/1 AS INT)  AS mukey, 
          (SELECT ROUND (AVG(interphr) over(partition by interphrc),2)
          FROM mapunit
-         INNER JOIN component ON component.mukey=mapunit.mukey
+         INNER JOIN component ON component.mukey=mapunit.mukey AND majcompflag = 'Yes'
          INNER JOIN SSURGOOnDemand_domcond_temp ON component.cokey = SSURGOOnDemand_domcond_temp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE '""" + iname + """' GROUP BY interphrc,
          interphr ORDER BY SUM (comppct_r) DESC LIMIT 1) AS rating,
          (SELECT interphrc
          FROM mapunit
-         INNER JOIN component ON component.mukey=mapunit.mukey
+         INNER JOIN component ON component.mukey=mapunit.mukey AND majcompflag = 'Yes'
          INNER JOIN SSURGOOnDemand_domcond_temp ON component.cokey = SSURGOOnDemand_domcond_temp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE '""" + iname + """'
          GROUP BY interphrc, comppct_r ORDER BY SUM(comppct_r) over(partition by interphrc) DESC LIMIT 1) as class,
          
           (SELECT GROUP_CONCAT( DISTINCT interphrc)
         FROM mapunit
         INNER JOIN component ON component.mukey=mapunit.mukey AND compkind != 'miscellaneous area' 
-        INNER JOIN SSURGOOnDemand_domcond_temp ON component.cokey = SSURGOOnDemand_domcond_temp.cokey AND mapunit.mukey = mu.mukey 
+        INNER JOIN SSURGOOnDemand_domcond_temp ON component.cokey = SSURGOOnDemand_domcond_temp.cokey AND mapunit.mukey = mu.mukey AND majcompflag = 'Yes'
         AND ruledepth != 0 AND interphrc NOT LIKE 'Not%' AND mrulename LIKE '""" + iname + """' GROUP BY interphrc
         ORDER BY interphr DESC, interphrc
          )as reason
@@ -1111,17 +1113,17 @@ class Interpretations:
         
         		ROUND ((SELECT SUM (interphr * comppct_r)
         		FROM mapunit
-        		INNER JOIN component ON component.mukey=mapunit.mukey
+        		INNER JOIN component ON component.mukey=mapunit.mukey AND majcompflag = 'Yes'
         		INNER JOIN cointerp_lite_temp ON component.cokey = cointerp_lite_temp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE '""" + iname + """'
         		GROUP BY mapunit.mukey),2) as rating,
         		ROUND ((SELECT SUM (comppct_r)
         		FROM mapunit
-        		INNER JOIN component ON component.mukey=mapunit.mukey
+        		INNER JOIN component ON component.mukey=mapunit.mukey AND majcompflag = 'Yes'
         		INNER JOIN cointerp_lite_temp ON component.cokey = cointerp_lite_temp.cokey AND mapunit.mukey = mu.mukey AND ruledepth = 0 AND mrulename LIKE '""" + iname + """'
         		AND (interphr) IS NOT NULL GROUP BY mapunit.mukey),2) as sum_com, 
         		  (SELECT GROUP_CONCAT( DISTINCT interphrc)
         FROM mapunit
-        INNER JOIN component ON component.mukey=mapunit.mukey AND compkind != 'miscellaneous area' 
+        INNER JOIN component ON component.mukey=mapunit.mukey AND compkind != 'miscellaneous area' AND majcompflag = 'Yes'
         INNER JOIN cointerp_lite_temp ON component.cokey = cointerp_lite_temp.cokey AND mapunit.mukey = c.mukey 
         AND ruledepth != 0 AND interphrc NOT LIKE 'Not%' AND mrulename LIKE '""" + iname + """' 
         ORDER BY interphr DESC, interphrc
@@ -1131,7 +1133,7 @@ class Interpretations:
                    
                     FROM legend  AS l
                     INNER JOIN  mapunit AS mu ON mu.lkey = l.lkey
-                    INNER JOIN  component AS c ON c.mukey = mu.mukey
+                    INNER JOIN  component AS c ON c.mukey = mu.mukey AND majcompflag = 'Yes'
                     GROUP BY areasymbol, musym, muname, mu.mukey;
                     
         CREATE TABLE """ + tblname + """ AS SELECT CAST(areasymbol AS text) AS areasymbol, CAST(musym AS text) AS musym, 
