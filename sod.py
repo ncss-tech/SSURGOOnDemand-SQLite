@@ -318,6 +318,11 @@ class Properties:
                 if propReq[0] in catprops:
                     message = 'Selected aggregation method not valid for requested property(s)'
                     # self.invalid(message)
+
+                if method in ['Weighted Average', 'Dominant Component Numeric']:
+                        iv = ['Kf', 'Kw']
+                        if any(x in iv for x in propReq):
+                            message = 'Selected aggregation method does not support K factor'
             except:
                 message = 'Select at least 1 soil property'
                 # self.invalid(message)
@@ -327,7 +332,7 @@ class Properties:
             if mmGet == '':
                 message = 'Select Min or Max aggregation'
                 # self.invalid(message=message)
-                
+
         try:
             
             db = self.openLbl.cget('text')
