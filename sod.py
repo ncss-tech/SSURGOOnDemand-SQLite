@@ -201,10 +201,11 @@ class Properties:
         global propList
         global catprops
         global numprops
+        global minmax
         
         catprops = ['Corrosion of Concrete', 'Corrosion of Steel', 'Drainage Class', 'Hydrologic Group', 'Taxonomic Class Name', 'Taxonomic Order', 'Taxonomic Particle Size', 'Taxonomic Suborder', 'Taxonomic Temperature Regime', 'Wind Erodibility Group', 'Wind Erodibility Index', 't Factor']
-        numprops = ['0.1 bar H2O - Rep Value', '0.33 bar H2O - Rep Value', '15 bar H2O - Rep Value', 'Available Water Capacity - Rep Value', 'Bray 1 Phosphate - Rep Value', 'Bulk Density 0.1 bar H2O - Rep Value', 'Bulk Density 0.33 bar H2O - Rep Value', 'Bulk Density 15 bar H2O - Rep Value', 'Bulk Density oven dry - Rep Value', 'CaCO3 Clay - Rep Value', 'Calcium Carbonate - Rep Value', 'Cation Exchange Capcity - Rep Value', 'Coarse Sand - Rep Value', 'Coarse Silt - Rep Value', 'Effective Cation Exchange Capcity - Rep Value', 'Electrical Conductivity - Rep Value', 'Extract Aluminum - Rep Value', 'Extractable Acidity - Rep Value', 'Fine Sand - Rep Value', 'Fine Silt - Rep Value', 'Free Iron - Rep Value', 'Gypsum - Rep Value', 'Kf', 'Kw ', 'LEP - Rep Value', 'Liquid Limit - Rep Value', 'Medium Sand - Rep Value', 'Organic Matter - Rep Value', 'Oxalate Aluminum - Rep Value', 'Oxalate Iron - Rep Value', 'Oxalate Phosphate - Rep Value', 'Plasticity Index - Rep Value', 'Rock Fragments 3 - 10 cm - Rep Value', 'Rock Fragments > 10 cm - Rep Value', 'Satiated H2O - Rep Value', 'Saturated Hydraulic Conductivity - Rep Value', 'Sodium Adsorption Ratio - Rep Value', 'Sum of Bases - Rep Value', 'Total Clay - Rep Value', 'Total Phosphate - Rep Value', 'Total Sand - Rep Value', 'Total Silt - Rep Value', 'Very Coarse Sand - Rep Value', 'Very Fine Sand - Rep Value', 'Water Soluble Phosphate - Rep Value', 'no. 10 sieve - Rep Value', 'no. 200 sieve - Rep Value', 'no. 4 sieve - Rep Value', 'no. 40 sieve - Rep Value']
-        
+        numprops = ['0.1 bar H2O - Rep Value', '0.33 bar H2O - Rep Value', '15 bar H2O - Rep Value', 'Available Water Capacity - Rep Value', 'Bray 1 Phosphate - Rep Value', 'Bulk Density 0.1 bar H2O - Rep Value', 'Bulk Density 0.33 bar H2O - Rep Value', 'Bulk Density 15 bar H2O - Rep Value', 'Bulk Density oven dry - Rep Value', 'CaCO3 Clay - Rep Value', 'Calcium Carbonate - Rep Value', 'Cation Exchange Capcity - Rep Value', 'Coarse Sand - Rep Value', 'Coarse Silt - Rep Value', 'Effective Cation Exchange Capcity - Rep Value', 'Electrical Conductivity - Rep Value', 'Extract Aluminum - Rep Value', 'Extractable Acidity - Rep Value', 'Fine Sand - Rep Value', 'Fine Silt - Rep Value', 'Free Iron - Rep Value', 'Gypsum - Rep Value', 'LEP - Rep Value', 'Liquid Limit - Rep Value', 'Medium Sand - Rep Value', 'Organic Matter - Rep Value', 'Oxalate Aluminum - Rep Value', 'Oxalate Iron - Rep Value', 'Oxalate Phosphate - Rep Value', 'Plasticity Index - Rep Value', 'Rock Fragments 3 - 10 cm - Rep Value', 'Rock Fragments > 10 cm - Rep Value', 'Satiated H2O - Rep Value', 'Saturated Hydraulic Conductivity - Rep Value', 'Sodium Adsorption Ratio - Rep Value', 'Sum of Bases - Rep Value', 'Total Clay - Rep Value', 'Total Phosphate - Rep Value', 'Total Sand - Rep Value', 'Total Silt - Rep Value', 'Very Coarse Sand - Rep Value', 'Very Fine Sand - Rep Value', 'Water Soluble Phosphate - Rep Value', 'no. 10 sieve - Rep Value', 'no. 200 sieve - Rep Value', 'no. 4 sieve - Rep Value', 'no. 40 sieve - Rep Value']
+        minmax = ['0.1 bar H2O - Rep Value', '0.33 bar H2O - Rep Value', '15 bar H2O - Rep Value', 'Available Water Capacity - Rep Value', 'Bray 1 Phosphate - Rep Value', 'Bulk Density 0.1 bar H2O - Rep Value', 'Bulk Density 0.33 bar H2O - Rep Value', 'Bulk Density 15 bar H2O - Rep Value', 'Bulk Density oven dry - Rep Value', 'CaCO3 Clay - Rep Value', 'Calcium Carbonate - Rep Value', 'Cation Exchange Capcity - Rep Value', 'Coarse Sand - Rep Value', 'Coarse Silt - Rep Value', 'Effective Cation Exchange Capcity - Rep Value', 'Electrical Conductivity - Rep Value', 'Extract Aluminum - Rep Value', 'Extractable Acidity - Rep Value', 'Fine Sand - Rep Value', 'Fine Silt - Rep Value', 'Free Iron - Rep Value', 'Gypsum - Rep Value', 'Kf', 'Kw ', 'LEP - Rep Value', 'Liquid Limit - Rep Value', 'Medium Sand - Rep Value', 'Organic Matter - Rep Value', 'Oxalate Aluminum - Rep Value', 'Oxalate Iron - Rep Value', 'Oxalate Phosphate - Rep Value', 'Plasticity Index - Rep Value', 'Rock Fragments 3 - 10 cm - Rep Value', 'Rock Fragments > 10 cm - Rep Value', 'Satiated H2O - Rep Value', 'Saturated Hydraulic Conductivity - Rep Value', 'Sodium Adsorption Ratio - Rep Value', 'Sum of Bases - Rep Value', 'Total Clay - Rep Value', 'Total Phosphate - Rep Value', 'Total Sand - Rep Value', 'Total Silt - Rep Value', 'Very Coarse Sand - Rep Value', 'Very Fine Sand - Rep Value', 'Water Soluble Phosphate - Rep Value', 'no. 10 sieve - Rep Value', 'no. 200 sieve - Rep Value', 'no. 4 sieve - Rep Value', 'no. 40 sieve - Rep Value']
         choice = self.callback()
         
         choices = ['', 'Dominant Component Categorical',  'Dominant Condition', 'Minimum/Maximum']
@@ -240,11 +241,14 @@ class Properties:
             for i,item in enumerate(catprops):
                 self.propList.insert(i, item)
         
-        elif (choice == 'Weighted Average') or (choice == 'Dominant Component Numeric') or (choice == 'Minimum/Maximum'):
+        elif (choice == 'Weighted Average') or (choice == 'Dominant Component Numeric'):
             # self.propList.delete(0, 'END')
             for i,item in enumerate(numprops):
                 self.propList.insert(i, item)
                 
+        elif choice == 'Minimum/Maximum':
+            for i,item in enumerate(minmax):
+                self.propList.insert(i, item)
         
     def disable(self, widget, state):
         
@@ -302,7 +306,7 @@ class Properties:
         
         if method in ['Dominant Component Categorical',  'Dominant Condition']:
             try:
-                if propReq[0] in numprops:
+                if (propReq[0] in numprops) or (propReq[0] in minmax):
                     message = 'Selected aggregation method not valid for requested properties'
                     # self.invalid(message)
             except: 
