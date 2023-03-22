@@ -663,7 +663,7 @@ class Properties:
         else:
             pass            
         
-        print(qry_wtdavg)
+        #print(qry_wtdavg)
         
         return test, qry_wtdavg
     
@@ -965,6 +965,7 @@ class Interpretations:
                     cur.close()
         
         except Exception as e:
+            print(qry)
             print(e)
             self.invalid(message=e)
         
