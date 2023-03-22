@@ -30,22 +30,22 @@ class Splash:
                 pass
         
         dialog = """
-        These tools utilize either a SQLite (.sqlite) or Geopackage (.gpkg) database to aggregate soil
-        property or interpretation information.  Source data are typically Web Soil Survey - Soil 
-        Survey Geographic Database (SSURGO) downloads that have been imported into one of 
-        these databases. When properties or interpretations have been executed with this tool 
-        the results are tables written to the template database and have a 'SSURGOOnDemand' prefix.
-        These tables can be used in GIS software and joined to spatial data using the map unit key
-        (mukey) fields.
+        These tools utilize either a SQLite (.sqlite) or Geopackage (.gpkg) SSURGO template
+        database to aggregate soil property or interpretation information.  Source data are 
+        typically Web Soil Survey - Soil Survey Geographic Database (SSURGO) downloads that 
+        have been imported into one of these template databases. When properties or 
+        interpretations have been executed with this tool the results are tables written to 
+        the template database and have a 'SSURGOOnDemand' prefix.  These tables can be used 
+        in GIS software and joined to spatial data using the map unit key (mukey) fields.
         
         Soil propeties are attributes found in a soil profile that can be measured or evaluated. 
         Examples include percent sand, percent silt, percent clay, bulk density (g/cm3), 
         available water capacity (cm/cm), etc.
         
-        Soil interpretations evaluate soil classes for suitabilty and limitations in land use 
+        Soil interpretations evaluate soil map units for suitabilty or limitations in land use 
         applications and management. Examples include Dwellings with Basements, Camping Areas, 
-        Land Application of Sewage Sludge, Potential Seedling Mortality, etc. Interpretations typically 
-        use soil properties to generate the suitability or limitation rating.""" 
+        Land Application of Sewage Sludge, Potential Seedling Mortality, etc. Interpretations 
+        typically use soil properties to generate the suitability or limitation rating.""" 
         
         
         # intro frame
@@ -544,6 +544,7 @@ class Properties:
         
         qry_wtdavg = """--weighted average
         
+        DROP TABLE IF EXISTS main;
         DROP TABLE IF EXISTS kitchensink;
         DROP TABLE IF EXISTS comp_temp;
         DROP TABLE IF EXISTS comp_temp2;
@@ -551,62 +552,76 @@ class Properties:
         DROP TABLE IF EXISTS last_step;
         DROP TABLE IF EXISTS last_step2;
         DROP TABLE IF EXISTS temp_main;
+        DROP TABLE IF EXISTS temp_main;
         
-        CREATE TABLE kitchensink AS
-        SELECT areasymbol, musym, muname, mukey
+        CREATE TABLE  kitchensink AS 
+        SELECT areasymbol, musym, muname, mukey, 
+        (SELECT SUM (cco.comppct_r)
+        FROM mapunit AS mm2
+        INNER JOIN component AS cco ON cco.mukey = mm2.mukey AND muks .mukey = mm2.mukey AND majcompflag = 'Yes' ) AS  major_mu_pct_sum
         FROM legend  AS lks
-        INNER JOIN  mapunit AS muks ON muks.lkey = lks.lkey;  
+        INNER JOIN  mapunit AS muks ON muks.lkey = lks.lkey;
         
-        CREATE TABLE comp_temp AS		
+        
+        CREATE TABLE comp_temp AS
         SELECT mu1.mukey, cokey, comppct_r,
-        SUM (comppct_r) over(partition by mu1.mukey ) AS SUM_COMP_PCT
+        
+        SUM (comppct_r) over(partition by mu1.mukey ) AS SUM_COMP_PCT,  major_mu_pct_sum
         FROM kitchensink AS mu1
-        INNER JOIN  component AS c1 ON c1.mukey = mu1.mukey AND majcompflag = 'Yes';	
+        INNER JOIN  component AS c1 ON c1.mukey = mu1.mukey AND majcompflag = 'Yes' AND compkind != 'Miscellaneous area';
         
         CREATE TABLE comp_temp3 AS
-        SELECT cokey, SUM_COMP_PCT, CASE WHEN comppct_r = SUM_COMP_PCT THEN 1
+        SELECT cokey, SUM_COMP_PCT,  major_mu_pct_sum, CASE WHEN comppct_r = SUM_COMP_PCT THEN 1
         ELSE CAST (CAST (comppct_r AS  REAL) / CAST (SUM_COMP_PCT AS REAL) AS REAL) END AS WEIGHTED_COMP_PCT
-        FROM comp_temp;	
+        FROM comp_temp;
         
-        CREATE TABLE temp_main AS		
-        SELECT
-        areasymbol, musym, muname, mu.mukey/1  AS MUKEY, c.cokey AS COKEY, ch.chkey/1 AS CHKEY, compname, hzname, hzdept_r, hzdepb_r, CASE WHEN hzdept_r < """ + tDep + """  THEN 0 ELSE hzdept_r END AS hzdept_r_ADJ,
-        CASE WHEN hzdepb_r > """ + bDep + """  THEN 100 ELSE hzdepb_r END AS hzdepb_r_ADJ,
-        CAST (CASE WHEN hzdepb_r > """ + bDep + """  THEN 100 ELSE hzdepb_r END - CASE WHEN hzdept_r < """ + tDep + """ THEN 0 ELSE hzdept_r END AS decimal (5,2)) AS thickness,
-        comppct_r,
-        CAST (SUM (CASE WHEN hzdepb_r > """ + bDep + """  THEN 100 ELSE hzdepb_r END - CASE WHEN hzdept_r < """ + tDep + """ THEN 0 ELSE hzdept_r END) over(partition by c.cokey) AS decimal (5,2)) AS sum_thickness,
-        CAST (IFNULL (""" + col + """, 0) AS REAL) AS """ + col + """
+        CREATE TABLE temp_main AS
+        SELECT 
+        areasymbol, musym, muname, mu.mukey/1  AS MUKEY, c.cokey AS COKEY, ch.chkey/1 AS CHKEY, compname, hzname, hzdept_r, hzdepb_r, CASE WHEN hzdept_r <""" + tDep + """ THEN """ + tDep + """ ELSE hzdept_r END AS hzdept_r_ADJ, 
+        CASE WHEN hzdepb_r > """ + bDep + """  THEN """ + bDep + """ ELSE hzdepb_r END AS hzdepb_r_ADJ,
+        CAST (CASE WHEN hzdepb_r > """ + bDep + """  THEN """ + bDep + """ ELSE hzdepb_r END - CASE WHEN hzdept_r <""" + tDep + """ THEN """ + tDep + """ ELSE hzdept_r END AS decimal (5,2)) AS thickness,
+        comppct_r, 
         
+        CAST (SUM (CASE WHEN hzdepb_r > """ + bDep + """ THEN """ + bDep + """ ELSE hzdepb_r END - CASE WHEN hzdept_r <""" + tDep + """ THEN """ + tDep + """ ELSE hzdept_r END) over(partition by c.cokey) AS decimal (5,2)) AS sum_thickness, 
+        CAST (IFNULL (""" + col + """, """ + tDep + """) AS decimal (5,2))AS """ + col + """
         FROM kitchensink AS mu
-        INNER JOIN  component AS c ON c.mukey = mu.mukey AND majcompflag = 'Yes'
-        INNER JOIN chorizon AS ch ON ch.cokey=c.cokey AND hzname NOT LIKE '%O%'AND hzname NOT LIKE '%r%'
-        AND hzdepb_r > """ + tDep + """ AND hzdept_r < """ + bDep + """
-        INNER JOIN chtexturegrp AS cht ON ch.chkey=cht.chkey  WHERE cht.rvindicator = 'Yes' AND  ch.hzdept_r IS NOT NULL
-        AND texture NOT LIKE '%PM%' and texture NOT LIKE '%DOM' and texture NOT LIKE '%MPT%' and texture NOT LIKE '%MUCK' and texture NOT LIKE '%PEAT%' and texture NOT LIKE '%br%' and texture NOT LIKE '%wb%'
-        ORDER BY areasymbol, musym, muname, mu.mukey, comppct_r DESC, cokey,  hzdept_r, hzdepb_r	;	
+        INNER JOIN component AS c ON c.mukey = mu.mukey  AND majcompflag = 'Yes'
+        INNER JOIN chorizon AS ch ON ch.cokey=c.cokey AND hzname NOT LIKE '%O%' AND hzname NOT LIKE '%r%'
+        AND hzdepb_r >""" + tDep + """ AND hzdept_r <""" + bDep + """
+        INNER JOIN chtexturegrp AS cht ON ch.chkey=cht.chkey AND
+        CASE WHEN texture LIKE '%PM%' THEN 2
+        WHEN  texture LIKE '%DOM' THEN 2
+        WHEN  texture LIKE '%MPT%' THEN 2
+        WHEN  texture LIKE '%MUCK' THEN 2
+        WHEN  texture LIKE '%PEAT%' THEN 2 
+        WHEN  texture LIKE '%br%' THEN 2
+        WHEN  texture LIKE '%wb%' THEN 2 
+        ELSE 1 END = 1
+        AND cht.rvindicator = 'Yes' AND  ch.hzdept_r IS NOT NULL 
+        ORDER BY  areasymbol, musym, muname, mu.mukey, comppct_r DESC, cokey,  hzdept_r, hzdepb_r;
         
-        CREATE TABLE comp_temp2 AS 
-        SELECT temp_main.areasymbol, temp_main.musym, temp_main.muname, temp_main.MUKEY,
+        
+        CREATE TABLE comp_temp2 AS
+        SELECT temp_main.areasymbol , temp_main.musym, temp_main.muname, temp_main.MUKEY, 
         temp_main.COKEY, temp_main.CHKEY, temp_main.compname, hzname, hzdept_r, hzdepb_r, hzdept_r_ADJ, hzdepb_r_ADJ, thickness, sum_thickness, """ + col + """, comppct_r, SUM_COMP_PCT, WEIGHTED_COMP_PCT ,
-        SUM((CAST (thickness  AS REAL )/CAST (sum_thickness  AS REAL ) ) * """ + col + """ )over(partition by temp_main.COKEY)AS COMP_WEIGHTED_AVERAGE
+        SUM((CAST (thickness  AS REAL )/CAST (sum_thickness  AS REAL )  ) * """ + col + """ )over(partition by temp_main.COKEY)AS COMP_WEIGHTED_AVERAGE
         FROM temp_main
         INNER JOIN comp_temp3 ON comp_temp3.cokey=temp_main.cokey
         ORDER BY temp_main.areasymbol, temp_main.musym, temp_main.muname, temp_main.MUKEY, comppct_r DESC,  temp_main.COKEY,  hzdept_r, hzdepb_r;
         
-        CREATE TABLE last_step AS 
+        CREATE TABLE last_step AS
         SELECT comp_temp2.MUKEY,comp_temp2.COKEY, WEIGHTED_COMP_PCT * COMP_WEIGHTED_AVERAGE AS COMP_WEIGHTED_AVERAGE1
         FROM comp_temp2
-        GROUP BY  comp_temp2.MUKEY,comp_temp2.COKEY, WEIGHTED_COMP_PCT, COMP_WEIGHTED_AVERAGE;
+        GROUP BY  comp_temp2.MUKEY,comp_temp2.COKEY, WEIGHTED_COMP_PCT, COMP_WEIGHTED_AVERAGE;	
         
-        CREATE TABLE last_step2 AS 
+        CREATE TABLE last_step2 AS
         SELECT areasymbol, musym, muname,
         kitchensink.mukey, last_step.COKEY,
         CAST (SUM (COMP_WEIGHTED_AVERAGE1) over(partition by kitchensink.mukey) as decimal(5,2))AS """ + col + """
-        FROM kitchensink  
+        FROM kitchensink
         LEFT OUTER JOIN last_step ON kitchensink.mukey=last_step.mukey
         GROUP BY kitchensink.areasymbol, kitchensink.musym, kitchensink.muname, kitchensink.mukey, COMP_WEIGHTED_AVERAGE1, last_step.COKEY
         ORDER BY kitchensink.areasymbol, kitchensink.musym, kitchensink.muname, kitchensink.mukey;
-        
         
         CREATE TABLE """ + tblname + """ AS
         SELECT last_step2.areasymbol, last_step2.musym, last_step2.muname,
@@ -616,13 +631,19 @@ class Properties:
         GROUP BY last_step2.areasymbol, last_step2.musym, last_step2.muname, last_step2.mukey, last_step2.""" + col + """
         ORDER BY last_step2.areasymbol, last_step2.musym, last_step2.muname, last_step2.mukey, last_step2.""" + col + """;
         
+        
+        DROP TABLE IF EXISTS main;
         DROP TABLE IF EXISTS kitchensink;
         DROP TABLE IF EXISTS comp_temp;
         DROP TABLE IF EXISTS comp_temp2;
         DROP TABLE IF EXISTS comp_temp3;
         DROP TABLE IF EXISTS last_step;
         DROP TABLE IF EXISTS last_step2;
-        DROP TABLE IF EXISTS temp_main;"""
+        DROP TABLE IF EXISTS temp_main;
+        DROP TABLE IF EXISTS temp_main;
+        """
+        
+        
         
         if dbtype == '.gpkg':
             
@@ -638,8 +659,11 @@ class Properties:
             
             qry_wtdavg = qry_wtdavg + gcontents
 
+            
         else:
             pass            
+        
+        print(qry_wtdavg)
         
         return test, qry_wtdavg
     
